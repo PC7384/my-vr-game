@@ -1,145 +1,55 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Mini VR Animal Game (A-Frame)</title>
-  <meta name="description" content="Tiny HTML VR game using A-Frame / WebXR" />
-  <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe.min.js"></script>
-  <!-- optional extras for controller cursor and teleport -->
-  <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
-  <style> body { margin:0; } #hud { position:fixed; left:10px; top:10px; color:#fff; font-family:Arial; z-index:10; }</style>
+  <meta charset="utf-8">
+  <title>WebXR OpenXR-Style Example</title>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/VRButton.js"></script>
+  <style> body { margin:0; overflow:hidden; } </style>
 </head>
 <body>
-  <div id="hud">Score: <span id="score">0</span> — Press <b>Enter VR</b> to play</div>
-
-  <a-scene background="color: #87CEEB" vr-mode-ui="enterPrompt: Enter VR" renderer="antialias: true">
-
-    <!-- Camera + cursor for non-VR or gaze interaction -->
-    <a-entity id="cameraRig" position="0 1.6 3">
-      <a-entity camera look-controls wasd-controls>
-        <!-- mouse / gaze cursor for desktop testing -->
-        <a-entity cursor="fuse: false; rayOrigin: mouse"
-                  raycaster="objects: .clickable"
-                  position="0 0 -1"
-                  geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
-                  material="color: black; shader: flat">
-        </a-entity>
-      </a-entity>
-    </a-entity>
-
-    <!-- ground -->
-    <a-plane rotation="-90 0 0" width="20" height="20" color="#228B22"></a-plane>
-
-    <!-- simple "animals" made from primitives -->
-    <a-entity id="animals" position="-3 0 0">
-      <!-- animal template instances -->
-      <a-entity class="clickable animal" position="0 0.5 -2" geometry="primitive: box; height:0.6; width:0.9; depth:0.5"
-                material="color: orange" animal-behavior></a-entity>
-
-      <a-entity class="clickable animal" position="2 0.5 -1.5" geometry="primitive: sphere; radius:0.4"
-                material="color: peru" animal-behavior></a-entity>
-
-      <a-entity class="clickable animal" position="0.8 0.4 -3" geometry="primitive: cylinder; radius:0.35; height:0.6"
-                material="color: saddleBrown" animal-behavior></a-entity>
-    </a-entity>
-
-    <!-- a nice sky & sun -->
-    <a-sky color="#9EE0FF"></a-sky>
-    <a-entity light="type: ambient; color:#666"></a-entity>
-    <a-entity light="type: directional; color:#FFF; intensity:0.8" position="2 4 3"></a-entity>
-
-    <!-- controllers (for VR hand input) -->
-    <a-entity hand-controls="left"></a-entity>
-    <a-entity hand-controls="right"></a-entity>
-
-    <!-- teleport/simple locomotion (optional) -->
-    <a-entity id="teleport" teleport-controls="cameraRig: #cameraRig; button: trigger; collisionEntities: .ground"></a-entity>
-
-    <!-- small floating UI in the world -->
-    <a-entity position="-0.6 2 -1.5">
-      <a-text value="Tap animals to score!" color="#222" align="center" width="3"></a-text>
-    </a-entity>
-
-    <!-- audio - we'll generate simple beep in JS instead of relying on remote files -->
-  </a-scene>
-
 <script>
-  // Very small game logic using A-Frame components.
-  AFRAME.registerComponent('animal-behavior', {
-    init: function () {
-      const el = this.el;
-      el.setAttribute('class', (el.getAttribute('class') || '') + ' clickable');
-      el.addEventListener('click', () => {
-        // pop animation
-        el.removeAttribute('animation__pop');
-        el.setAttribute('animation__pop', {
-          property: 'scale',
-          to: '1.4 1.4 1.4',
-          dur: 120,
-          dir: 'alternate',
-          easing: 'easeOutElastic'
-        });
-        // color flash
-        const original = el.getAttribute('material').color || '#fff';
-        el.setAttribute('material', 'color', '#FFFF66');
-        setTimeout(() => { el.setAttribute('material', 'color', original); }, 180);
+  // Scene setup
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87ceeb);
 
-        // move animal randomly a bit to simulate 'bounce away'
-        const pos = el.getAttribute('position');
-        pos.x += (Math.random() - 0.5) * 0.8;
-        pos.z += (Math.random() - 0.5) * 0.8;
-        pos.y = Math.max(0.4, pos.y + Math.random() * 0.3);
-        el.setAttribute('position', pos);
+  // Camera
+  const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 100);
 
-        // score update
-        const scoreEl = document.getElementById('score');
-        const score = parseInt(scoreEl.innerText || '0', 10) + 1;
-        scoreEl.innerText = score;
+  // Renderer with WebXR enabled
+  const renderer = new THREE.WebGLRenderer({ antialias:true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.xr.enabled = true;
+  document.body.appendChild(renderer.domElement);
 
-        // small audio feedback via WebAudio
-        playBeep(220 + Math.random()*800, 0.07);
-      });
+  // VR button
+  document.body.appendChild(THREE.VRButton.createButton(renderer));
 
-      // small idle bobbing animation
-      el.setAttribute('animation__bob', {
-        property: 'position',
-        to: `${el.getAttribute('position').x} ${el.getAttribute('position').y + 0.12} ${el.getAttribute('position').z}`,
-        dur: 1200 + Math.random()*600,
-        dir: 'alternate',
-        loop: true,
-        easing: 'easeInOutSine'
-      });
-    }
-  });
+  // Lighting
+  const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+  scene.add(light);
 
-  // Basic WebAudio beep (so no external assets required)
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  function playBeep(freq = 440, duration = 0.1) {
-    try {
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      o.type = 'sine';
-      o.frequency.value = freq;
-      o.connect(g);
-      g.connect(audioCtx.destination);
-      g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.12, audioCtx.currentTime + 0.01);
-      o.start();
-      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-      o.stop(audioCtx.currentTime + duration + 0.02);
-    } catch (e) {
-      // ignore if audio not allowed/available
-      console.warn('Audio play failed:', e);
-    }
+  // A simple cube (the "animal" placeholder)
+  const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+  const material = new THREE.MeshStandardMaterial({ color: 0xff6600 });
+  const cube = new THREE.Mesh(geometry, material);
+  cube.position.set(0, 1.5, -2);
+  scene.add(cube);
+
+  // Animate
+  function animate() {
+    cube.rotation.x += 0.01;
+    cube.rotation.y += 0.015;
+    renderer.render(scene, camera);
   }
+  renderer.setAnimationLoop(animate);
 
-  // Desktop: allow mouse click to trigger audio context resume
-  window.addEventListener('click', () => {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+  // Handle resize
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
   });
-
-  // Helpful: show a quick console hint
-  console.log('Mini VR Animal Game loaded. Serve via http(s) or localhost and open in a WebXR-enabled browser.');
 </script>
 </body>
 </html>
